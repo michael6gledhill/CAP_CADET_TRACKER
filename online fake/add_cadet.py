@@ -12,11 +12,12 @@ import sys
 
 # Database configuration - using credentials you provided
 DB_CONFIG = {
-    'host': 'localhost',
-    'user': 'Michael',
-    'password': 'hogbog89',
-    'database': 'cap_cadet_tracker_2.0',
+    'host': 'sql5.freesqldatabase.com',
+    'user': 'sql5801111',
+    'password': 'yhMJiGDnTE',
+    'database': 'sql5801111',
 }
+
 
 # configure basic logging to stdout
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
@@ -75,6 +76,40 @@ def fetch_line_positions():
         conn.close()
 
 
+def fetch_ranks():
+    conn = get_connection()
+    if not conn:
+        return []
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT idrank, rank_name FROM `rank`")
+        rows = cur.fetchall()
+        return rows
+    except Error as e:
+        messagebox.showerror("Database Error", f"Error fetching ranks:\n{e}")
+        logging.exception('Error fetching ranks')
+        return []
+    finally:
+        conn.close()
+
+
+def fetch_cadet_ranks(cadet_id: int):
+    """Return a list of rank ids attached to a cadet."""
+    conn = get_connection()
+    if not conn:
+        return []
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT rank_idrank FROM cadet_has_rank WHERE cadet_idcadet = %s", (cadet_id,))
+        rows = cur.fetchall()
+        return [r[0] for r in rows]
+    except Error:
+        logging.exception('Error fetching cadet ranks')
+        return []
+    finally:
+        conn.close()
+
+
 def fetch_cadet_by_capid(capid: int):
     """Return a cadet row by cadet_capid or None."""
     conn = get_connection()
@@ -107,7 +142,7 @@ class CadetForm(tk.Frame):
 
     def create_widgets(self):
         # fonts and styles
-        header_font = tkfont.Font(size=12, weight='bold')
+        header_font = tkfont.Font(size=16, weight='bold')
         label_font = tkfont.Font(size=10)
         entry_width = 32
 
@@ -174,6 +209,10 @@ class CadetForm(tk.Frame):
         self.linepos_cb = ttk.Combobox(assign, state='readonly', width=entry_width-2)
         self.linepos_cb.grid(row=1, column=1, sticky='w', padx=(0,12), pady=8)
 
+        ttk.Label(assign, text='Rank:', font=label_font).grid(row=2, column=0, sticky='e', padx=(0,8), pady=8)
+        self.rank_cb = ttk.Combobox(assign, state='readonly', width=entry_width-2)
+        self.rank_cb.grid(row=2, column=1, sticky='w', padx=(0,12), pady=8)
+
         # Button bar
         btn_frame = ttk.Frame(self, padding=(0,12))
         btn_frame.grid(row=4, column=0, columnspan=2, sticky='ew')
@@ -224,6 +263,20 @@ class CadetForm(tk.Frame):
             self.line_ids = []
             self.linepos_cb['values'] = []
 
+        ranks = fetch_ranks()
+        if ranks:
+            self.rank_map = {str(r[0]): r[1] for r in ranks}
+            self.rank_ids = [str(r[0]) for r in ranks]
+            names = [r[1] or f"Rank {r[0]}" for r in ranks]
+            self.rank_cb['values'] = names
+            if names:
+                self.rank_cb.current(0)
+            self.status_var.set(self.status_var.get() + f', {len(ranks)} ranks')
+        else:
+            self.rank_map = {}
+            self.rank_ids = []
+            self.rank_cb['values'] = []
+
     def _populate_from_row(self, row):
         # row: (idcadet, cadet_capid, cadet_fname, cadet_lname, cadet_email, cadet_phone, cadet_birthday, line_position_idline_position, flight_idflight)
         if not row:
@@ -255,6 +308,18 @@ class CadetForm(tk.Frame):
                             vals = list(self.linepos_cb['values'])
                             if lname in vals:
                                 self.linepos_cb.current(vals.index(lname))
+                            break
+                # select rank if cadet has one
+                cadet_ranks = fetch_cadet_ranks(row[0])
+                if cadet_ranks:
+                    # pick the first rank
+                    rank_id = cadet_ranks[0]
+                    ranks = fetch_ranks()
+                    for rid, rname in ranks:
+                        if rid == rank_id:
+                            vals = list(self.rank_cb['values'])
+                            if rname in vals:
+                                self.rank_cb.current(vals.index(rname))
                             break
             except Exception:
                 logging.exception('Error selecting lookup values')
@@ -368,6 +433,21 @@ class CadetForm(tk.Frame):
                     params = (fname, lname, email, phone_val, bday, line_id, flight_id, self._current_existing_cadet_id)
                     cur.execute(sql, params)
                     conn.commit()
+                    # update cadet_has_rank: remove old and insert new if selected
+                    try:
+                        cur.execute('DELETE FROM cadet_has_rank WHERE cadet_idcadet = %s', (self._current_existing_cadet_id,))
+                        # insert selected rank if any
+                        rank_name = self.rank_cb.get()
+                        if rank_name:
+                            # find rank id
+                            ranks = fetch_ranks()
+                            for rid, rname in ranks:
+                                if (rname or f'Rank {rid}') == rank_name:
+                                    cur.execute('INSERT INTO cadet_has_rank (cadet_idcadet, rank_idrank) VALUES (%s,%s)', (self._current_existing_cadet_id, rid))
+                                    conn.commit()
+                                    break
+                    except Exception:
+                        logging.exception('Could not update cadet ranks')
                     messagebox.showinfo('Success', 'Cadet updated successfully.')
                     self._clear_form()
                 except Error as e:
@@ -392,6 +472,20 @@ class CadetForm(tk.Frame):
                 params = (capid, fname, lname, email, phone_val, bday, line_id, line_id, flight_id)
                 cur.execute(sql, params)
                 conn.commit()
+                # insert cadet rank mapping if a rank was selected
+                try:
+                    # get inserted cadet id
+                    new_id = cur.lastrowid
+                    rank_name = self.rank_cb.get()
+                    if rank_name:
+                        ranks = fetch_ranks()
+                        for rid, rname in ranks:
+                            if (rname or f'Rank {rid}') == rank_name:
+                                cur.execute('INSERT INTO cadet_has_rank (cadet_idcadet, rank_idrank) VALUES (%s,%s)', (new_id, rid))
+                                conn.commit()
+                                break
+                except Exception:
+                    logging.exception('Could not insert cadet rank mapping')
                 messagebox.showinfo('Success', 'Cadet added successfully.')
                 # clear form
                 self._clear_form()

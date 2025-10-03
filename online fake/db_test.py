@@ -2,10 +2,10 @@ import mysql.connector
 from mysql.connector import Error
 
 DB_CONFIG = {
-    'host': 'localhost',
-    'user': 'Michael',
-    'password': 'hogbog89',
-    'database': 'cap_cadet_tracker_2.0',
+    'host': 'sql5.freesqldatabase.com',
+    'user': 'sql5801111',
+    'password': 'yhMJiGDnTE',
+    'database': 'sql5801111',
 }
 
 
