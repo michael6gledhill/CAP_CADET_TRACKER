@@ -363,74 +363,65 @@ VALUES
 
 INSERT INTO `cadet_tracker`.`rank` (rank_name, rank_order)
 VALUES
--- PHASE I - THE LEARNING PHASE
 ('C/Amn', 1),
 ('C/A1C', 2),
 ('C/SrA', 3),
 ('C/SSgt', 4),
-
--- PHASE II - THE LEADERSHIP PHASE
 ('C/TSgt', 5),
 ('C/MSgt', 6),
 ('C/SMSgt', 7),
 ('C/CMSgt', 8),
 ('C/CMSgt', 9),
 ('C/2d Lt', 10),
-
--- PHASE III - THE COMMAND PHASE
 ('C/2d Lt', 11),
 ('C/1st Lt', 12),
 ('C/1st Lt', 13),
 ('C/Capt', 14),
-
--- PHASE IV - THE EXECUTIVE PHASE
 ('C/Capt', 15),
 ('C/Capt', 16),
 ('C/Maj', 17),
 ('C/Maj', 18),
 ('C/Maj', 19),
 ('C/Lt Col', 20),
-
--- PINNACLE
 ('C/Col', 21);
 
-
+-- This is all fake data for testing purposes only
+-- cadet_id is auto incremented so it does not need to be included
 INSERT INTO `cadet_tracker`.`cadet` (first_name, last_name, cap_id)
 VALUES
-('Miley', 'Barbee', 727171),
-('Jack', 'Boren', 627637),
-('Raylan', 'Burlison', 752562),
-('Gavyn', 'Butler', 694823),
-('Kale', 'Collard', 744396),
-('Hannah', 'Covell', 753301),
-('Tarin', 'Crowder', 709079),
-('Jonathan', 'Deloach', 754548),
-('Evelyn', 'Ferguson', 686181),
-('Morgan', 'Fruth', 665553),
-('Garrett', 'Fruth', 720852),
-('Nicholas', 'Gingerich', 681612),
-('Michael', 'Gledhill', 706704),
-('Samuel', 'Grinnell', 733183),
-('Jonathan', 'Grinnell', 745148),
-('Carson', 'Henrion', 717978),
-('Ariel', 'Hiser', 709399),
-('Caleb', 'Johnson', 748235),
-('Dorian', 'Jones', 752545),
-('Nathaniel', 'Lewis', 743703),
-('Levi', 'McCaslin', 710892),
-('Josiah', 'Miller', 743626),
-('Justice', 'Morgan', 734307),
-('Matthias', 'Morgan', 734306),
-('Autumn', 'Morgan', 714744),
-('Reid', 'Neal', 754724),
-('Jason', 'Nunes Jr', 733232),
-('Walter', 'Perez', 750714),
-('Nolan', 'Reyes', 726971),
-('Isabel', 'Reyes', 747188),
-('Carter', 'Sapp', 755130),
-('William', 'Schultz', 754184),
-('Trenton', 'Moore', 753940),
-('Ariella', 'White', 753920),
-('Paul', 'Williams', 733062),
-('Mia', 'Yates', 695203);
-
+('Miley', 'Barber', 778248),
+('Jackson', 'Borne', 501338),
+('Rylan', 'Burling', 613164),
+('Gavin', 'Butler', 703105),
+('Kale', 'Collins', 657871),
+('Hannah', 'Covell', 753767),
+('Tarin', 'Crowe', 708386),
+('Jonah', 'Delaney', 701845),
+('Evelyn', 'Ferguson', 783503),
+('Morgan', 'Frost', 696965),
+('Garrett', 'Freeman', 518196),
+('Nicholas', 'Ginn', 748281),
+('Michael', 'Gledhill', 528710),
+('Samuel', 'Grinnell', 710433),
+('Jonathon', 'Grinnell', 629591),
+('Carson', 'Henrion', 676044),
+('Arielle', 'Hiser', 759120),
+('Caleb', 'Johnson', 611284),
+('Dorian', 'Jones', 742617),
+('Nathan', 'Lewis', 603209),
+('Levi', 'McCaskill', 567992),
+('Josiah', 'Miller', 546270),
+('Justin', 'Morgan', 771822),
+('Matthew', 'Morgan', 628809),
+('Autumn', 'Morrison', 561849),
+('Reed', 'Neal', 579402),
+('Jason', 'Nunes', 556413),
+('Walker', 'Perez', 739301),
+('Noah', 'Reyes', 611615),
+('Isabella', 'Reyes', 694078),
+('Carter', 'Sapp', 542388),
+('William', 'Schultz', 693103),
+('Trent', 'Moore', 741928),
+('Ariella', 'White', 669784),
+('Paul', 'Williams', 763834),
+('Maya', 'Yates', 748932);

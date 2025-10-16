@@ -23,7 +23,7 @@ DB_CONFIG = {
     'host': 'localhost',
     'user': 'Michael',
     'password': 'hogbog89',
-    'database': 'cap_cadet_tracker_3.0',
+    'database': 'cadet_tracker',
 }
 
 
