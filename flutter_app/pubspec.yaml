@@ -1,0 +1,16 @@
+name: cap_cadet_tracker
+description: CAP Cadet Tracker - Flutter desktop app (Windows/macOS)
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+  mysql1: ^0.20.0
+
+flutter:
+  uses-material-design: true
