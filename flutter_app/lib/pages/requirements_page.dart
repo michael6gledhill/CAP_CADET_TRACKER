@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../db.dart';
+import '../api.dart';
 import '../utils/dialogs.dart';
 
 class RequirementsPage extends StatefulWidget {
@@ -27,11 +27,15 @@ class _RequirementsPageState extends State<RequirementsPage> {
   Future<void> _loadRanks() async {
     setState(() => _loading = true);
     try {
-      final ranks = await DB.run((c) async {
-        final res = await c.query('SELECT rank_id, rank_name FROM `rank` ORDER BY rank_order ASC');
-        return res.map((r) => {'id': r['rank_id'] as int, 'name': r['rank_name'] as String}).toList();
-      });
-      _ranks = ranks;
+      final ranks = await api.listRanks();
+      // normalize
+      _ranks = ranks
+          .map((r) => {
+                'id': (r['rank_id'] ?? r['id']) as int? ?? 0,
+                'name': (r['rank_name'] ?? r['name'])?.toString() ?? ''
+              })
+          .map((r) => {'id': r['id'] as int, 'name': r['name'] as String})
+          .toList();
       if (_ranks.isNotEmpty) {
         _selectedRankId = _ranks.first['id'] as int;
         await _loadRequirements();
@@ -47,23 +51,14 @@ class _RequirementsPageState extends State<RequirementsPage> {
     if (_selectedRankId == null) return;
     setState(() => _loading = true);
     try {
-      final reqs = await DB.run((c) async {
-        final res = await c.query(DB.sql('''
-          SELECT r.requirement_id, r.requirement_name, r.description
-          FROM rank_has_requirement rr
-          JOIN requirement r ON rr.rank_requirement_requirement_id = r.requirement_id
-          WHERE rr.rank_rank_id = ?
-          ORDER BY r.requirement_id
-        ''', [_selectedRankId]));
-        return res
-            .map((r) => {
-                  'id': r['requirement_id'] as int,
-                  'name': r['requirement_name']?.toString() ?? '',
-                  'desc': r['description']?.toString() ?? '',
-                })
-            .toList();
-      });
-      _requirements = reqs;
+      final reqs = await api.listRequirementsForRank(_selectedRankId!);
+      _requirements = reqs
+          .map((r) => {
+                'id': (r['requirement_id'] ?? r['id']) as int,
+                'name': (r['requirement_name'] ?? r['requirement'])?.toString() ?? '',
+                'desc': (r['description'] ?? r['desc'])?.toString() ?? ''
+              })
+          .toList();
     } catch (e, st) {
       if (mounted) await showErrorDialog(context, 'Failed to load requirements', e, st);
     } finally {
@@ -79,16 +74,10 @@ class _RequirementsPageState extends State<RequirementsPage> {
       return;
     }
     try {
-      await DB.run((c) async {
-        final ins = await c.query(DB.sql('INSERT INTO requirement (requirement_name, description) VALUES (?, ?)', [name, desc]));
-        final reqId = ins.insertId;
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-        await c.query(DB.sql('INSERT INTO rank_has_requirement (rank_rank_id, rank_requirement_requirement_id) VALUES (?, ?)', [_selectedRankId, reqId]));
-        return 0; // satisfy generic type
-      });
+      await api.createRequirement(name, desc, linkRankId: _selectedRankId);
       _reqNameCtrl.clear();
       _reqDescCtrl.clear();
-      _loadRequirements();
+      await _loadRequirements();
     } catch (e, st) {
       await showErrorDialog(context, 'Failed to create/link', e, st);
     }
@@ -109,7 +98,7 @@ class _RequirementsPageState extends State<RequirementsPage> {
     );
     if (ok != true) return;
     try {
-  await DB.run((c) => c.query(DB.sql('DELETE FROM rank_has_requirement WHERE rank_rank_id=? AND rank_requirement_requirement_id=?', [_selectedRankId, reqId])));
+      await api.unlinkRequirementFromRank(_selectedRankId!, reqId);
       _loadRequirements();
     } catch (e, st) {
       await showErrorDialog(context, 'Failed to unlink', e, st);

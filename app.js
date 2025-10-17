@@ -51,6 +51,18 @@ app.get('/api/cadets/:id', async (req, res) => {
 	}
 });
 
+// Cadet lookup by CAP ID
+app.get('/api/cadets/by-capid/:capid', async (req, res) => {
+	try {
+		const capid = req.params.capid;
+		const rows = await db.findCadetByCapId(capid);
+		if (!rows || rows.length === 0) return res.status(404).json({ error: 'Not found' });
+		res.json(rows[0]);
+	} catch (err) {
+		res.status(500).json({ error: err?.message ?? String(err) });
+	}
+});
+
 app.post('/api/cadets', async (req, res) => {
 	try {
 		const body = req.body;
@@ -123,6 +135,40 @@ app.get('/api/positions', async (_req, res) => {
 	}
 });
 
+// Cadet ranks and completed requirements
+app.get('/api/cadets/:id/ranks', async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		const rows = await db.listCadetRanks(id);
+		res.json(rows.map(r => (typeof r === 'object' ? r.rank_rank_id ?? r.rank_id ?? r[0] : r)));
+	} catch (err) {
+		res.status(500).json({ error: err?.message ?? String(err) });
+	}
+});
+
+app.get('/api/cadets/:id/requirements', async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		const rows = await db.listCadetCompletedRequirements(id);
+		res.json(rows.map(r => (typeof r === 'object' ? r.requirement_requirement_id ?? r.requirement_id ?? r[0] : r)));
+	} catch (err) {
+		res.status(500).json({ error: err?.message ?? String(err) });
+	}
+});
+
+// Toggle requirement completion for a cadet (POST expects { completed: true/false })
+app.post('/api/cadets/:id/requirements/:reqId', async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		const reqId = parseInt(req.params.reqId, 10);
+		const completed = !!req.body.completed;
+		const r = await db.toggleCadetRequirement(id, reqId, completed);
+		res.json(r);
+	} catch (err) {
+		res.status(500).json({ error: err?.message ?? String(err) });
+	}
+});
+
 app.post('/api/positions', async (req, res) => {
 	try {
 		const body = req.body;
@@ -159,6 +205,37 @@ app.get('/api/ranks', async (_req, res) => {
 	try {
 		const rows = await db.listRanks();
 		res.json(rows);
+	} catch (err) {
+		res.status(500).json({ error: err?.message ?? String(err) });
+	}
+});
+
+// Inspections
+app.get('/api/cadets/:id/inspections', async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		const rows = await db.listInspectionsForCadet(id);
+		res.json(rows);
+	} catch (err) {
+		res.status(500).json({ error: err?.message ?? String(err) });
+	}
+});
+
+app.post('/api/inspections', async (req, res) => {
+	try {
+		const payload = req.body;
+		const r = await db.createInspection(payload);
+		res.json(r);
+	} catch (err) {
+		res.status(500).json({ error: err?.message ?? String(err) });
+	}
+});
+
+app.delete('/api/inspections/:id', async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		const r = await db.deleteInspection(id);
+		res.json(r);
 	} catch (err) {
 		res.status(500).json({ error: err?.message ?? String(err) });
 	}
@@ -209,6 +286,21 @@ app.get('/api/cadets/:id/profile', async (req, res) => {
 		res.json(p);
 	} catch (err) {
 		res.status(500).json({ error: err?.message ?? String(err) });
+	}
+});
+
+// Lightweight raw-SQL execution for local desktop client proxying.
+// WARNING: This accepts raw SQL and should only be enabled for trusted/local clients.
+app.post('/api/sql', express.json(), async (req, res) => {
+	try {
+		const { sql } = req.body || {};
+		if (!sql || typeof sql !== 'string') return res.status(400).json({ error: 'sql required' });
+		// Use the shared query helper which returns rows as plain objects
+		const rows = await db.query(sql);
+		res.json({ rows });
+	} catch (e) {
+		console.error('/api/sql error', e);
+		res.status(500).json({ error: String(e) });
 	}
 });
 

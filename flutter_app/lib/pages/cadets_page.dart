@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../db.dart';
+import '../api.dart';
 import '../utils/dialogs.dart';
 
 class CadetsPage extends StatefulWidget {
@@ -23,37 +23,30 @@ class _CadetsPageState extends State<CadetsPage> {
   Future<void> _load([String? q]) async {
     setState(() => _loading = true);
     try {
-      final rows = await DB.run((conn) async {
-        if (q != null && q.isNotEmpty) {
-          final like = '%$q%';
-          final sql = DB.sql('SELECT cadet_id, cap_id, first_name, last_name, date_of_birth FROM cadet WHERE CONCAT(first_name, " ", last_name) LIKE ? OR CAST(cap_id AS CHAR) LIKE ? ORDER BY last_name, first_name LIMIT 200', [like, like]);
-          final res = await conn.query(sql);
-          return res
-              .map((r) => {
-                    'cadet_id': r['cadet_id'],
-                    'cap_id': r['cap_id'],
-                    'first_name': r['first_name'],
-                    'last_name': r['last_name'],
-                    'dob': (r['date_of_birth'] is DateTime)
-                        ? (r['date_of_birth'] as DateTime).toIso8601String().split('T').first
-                        : (r['date_of_birth']?.toString() ?? ''),
-                  })
-              .toList();
-        } else {
-          final res = await conn.query('SELECT cadet_id, cap_id, first_name, last_name, date_of_birth FROM cadet ORDER BY last_name, first_name LIMIT 200');
-          return res
-              .map((r) => {
-                    'cadet_id': r['cadet_id'],
-                    'cap_id': r['cap_id'],
-                    'first_name': r['first_name'],
-                    'last_name': r['last_name'],
-                    'dob': (r['date_of_birth'] is DateTime)
-                        ? (r['date_of_birth'] as DateTime).toIso8601String().split('T').first
-                        : (r['date_of_birth']?.toString() ?? ''),
-                  })
-              .toList();
-        }
-      });
+      List<Map<String, dynamic>> rows;
+      if (q != null && q.isNotEmpty) {
+        final r = await api.searchCadets(q);
+        rows = r
+            .map((r) => {
+                  'cadet_id': r['cadet_id'] ?? r['id'],
+                  'cap_id': r['cap_id'] ?? r['cap'],
+                  'first_name': r['first_name'] ?? r['first'],
+                  'last_name': r['last_name'] ?? r['last'],
+                  'dob': (r['date_of_birth'] ?? r['dob'])?.toString() ?? ''
+                })
+            .toList();
+      } else {
+        final r = await api.listCadets();
+        rows = r
+            .map((r) => {
+                  'cadet_id': r['cadet_id'] ?? r['id'],
+                  'cap_id': r['cap_id'] ?? r['cap'],
+                  'first_name': r['first_name'] ?? r['first'],
+                  'last_name': r['last_name'] ?? r['last'],
+                  'dob': (r['date_of_birth'] ?? r['dob'])?.toString() ?? ''
+                })
+            .toList();
+      }
       _rows = rows;
     } catch (e, st) {
       if (mounted) {
@@ -101,13 +94,10 @@ class _CadetsPageState extends State<CadetsPage> {
                     ? null
                     : () async {
                         try {
-                          final ok = await DB.run((c) async {
-                            final r = await c.query('SELECT 1 as ok');
-                            return r.isNotEmpty ? r.first['ok'] : null;
-                          });
+                          final ok = await api.testConnection();
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('DB OK (SELECT 1) => $ok')),
+                              SnackBar(content: Text('API test => $ok')),
                             );
                           }
                         } catch (e, st) {

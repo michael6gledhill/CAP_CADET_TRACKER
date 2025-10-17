@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../db.dart';
+import '../api.dart';
 
 class ReportsPage extends StatefulWidget {
   const ReportsPage({super.key});
@@ -27,19 +27,16 @@ class _ReportsPageState extends State<ReportsPage> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final rows = await DB.run((c) async {
-        final res = await c.query('SELECT report_id, cadet_cadet_id, report_type, Incident_date, resolved FROM report ORDER BY Incident_date DESC LIMIT 500');
-        return res
-            .map((r) => {
-                  'report_id': r['report_id'],
-                  'cadet_cadet_id': r['cadet_cadet_id'],
-                  'report_type': r['report_type'],
-                  'Incident_date': r['Incident_date']?.toString() ?? '',
-                  'resolved': r['resolved'] == 1 ? 'Yes' : 'No',
-                })
-            .toList();
-      });
-      _rows = rows;
+      final rows = await api.listReports();
+      _rows = rows
+          .map((r) => {
+                'report_id': r['report_id'] ?? r['id'],
+                'cadet_cadet_id': r['cadet_cadet_id'] ?? r['cadet_id'] ?? r['cadet'],
+                'report_type': r['report_type'] ?? r['type'],
+                'Incident_date': (r['Incident_date'] ?? r['date'])?.toString() ?? '',
+                'resolved': (r['resolved'] == 1 || r['resolved'] == true) ? 'Yes' : 'No'
+              })
+          .toList();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to load reports: $e')));
@@ -61,21 +58,16 @@ class _ReportsPageState extends State<ReportsPage> {
       return;
     }
     try {
-      await DB.run((c) async {
-        final sql = DB.sql(
-          'INSERT INTO report (cadet_cadet_id, report_type, description, created_by, Incident_date, resolved, resolved_by) VALUES (?,?,?,?,?,?,?)',
-          [
-            cadetId,
-            _typeCtrl.text.trim(),
-            _descCtrl.text.trim(),
-            null,
-            _dateCtrl.text.trim().isEmpty ? null : _dateCtrl.text.trim(),
-            0,
-            _resolvedByCtrl.text.trim().isEmpty ? null : _resolvedByCtrl.text.trim(),
-          ],
-        );
-        await c.query(sql);
-      });
+      final payload = {
+        'cadet_cadet_id': cadetId,
+        'report_type': _typeCtrl.text.trim(),
+        'description': _descCtrl.text.trim(),
+        'created_by': null,
+        'Incident_date': _dateCtrl.text.trim().isEmpty ? null : _dateCtrl.text.trim(),
+        'resolved': 0,
+        'resolved_by': _resolvedByCtrl.text.trim().isEmpty ? null : _resolvedByCtrl.text.trim(),
+      };
+      await api.createReport(payload);
       _cadetCtrl.clear();
       _typeCtrl.text = 'Negative';
       _dateCtrl.clear();
@@ -102,7 +94,7 @@ class _ReportsPageState extends State<ReportsPage> {
     if (ok != true) return;
 
     try {
-      await DB.run((c) => c.query(DB.sql('DELETE FROM report WHERE report_id=?', [reportId])));
+      await api.deleteReport(reportId);
       _load();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));

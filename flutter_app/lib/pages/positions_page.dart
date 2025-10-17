@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../db.dart';
+import '../api.dart';
 import '../utils/dialogs.dart';
 
 class PositionsPage extends StatefulWidget {
@@ -26,18 +26,15 @@ class _PositionsPageState extends State<PositionsPage> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final rows = await DB.run((c) async {
-        final res = await c.query('SELECT position_id, position_name, line, level FROM `position` ORDER BY position_id');
-        return res
-            .map((r) => {
-                  'position_id': r['position_id'],
-                  'position_name': r['position_name'],
-                  'line': r['line'],
-                  'level': r['level']?.toString() ?? '',
-                })
-            .toList();
-      });
-      _rows = rows;
+      final rows = await api.listPositions();
+      _rows = rows
+          .map((r) => {
+                'position_id': r['position_id'] ?? r['id'],
+                'position_name': r['position_name'] ?? r['name'],
+                'line': r['line'],
+                'level': r['level']?.toString() ?? ''
+              })
+          .toList();
     } catch (e, st) {
       if (mounted) {
         await showErrorDialog(context, 'Failed to load positions', e, st);
@@ -56,7 +53,7 @@ class _PositionsPageState extends State<PositionsPage> {
     final line = int.tryParse(_typeCtrl.text.trim()) ?? 0;
     final level = _levelCtrl.text.trim().isEmpty ? null : _levelCtrl.text.trim();
     try {
-      await DB.run((c) => c.query(DB.sql('INSERT INTO `position` (position_name, line, level) VALUES (?,?,?)', [name, line, level])));
+      await api.createPosition({'position_name': name, 'line': line, 'level': level});
       _nameCtrl.clear();
       _typeCtrl.text = '0';
       _levelCtrl.clear();
@@ -72,7 +69,7 @@ class _PositionsPageState extends State<PositionsPage> {
     final line = int.tryParse(_typeCtrl.text.trim()) ?? (row['line'] ?? 0);
     final level = _levelCtrl.text.trim().isEmpty ? row['level'] : _levelCtrl.text.trim();
     try {
-      await DB.run((c) => c.query(DB.sql('UPDATE `position` SET position_name=?, line=?, level=? WHERE position_id=?', [name, line, level, id])));
+      await api.updatePosition(id, {'position_name': name, 'line': line, 'level': level});
       _load();
     } catch (e, st) {
       await showErrorDialog(context, 'Failed to update position', e, st);
@@ -93,12 +90,8 @@ class _PositionsPageState extends State<PositionsPage> {
     );
     if (ok != true) return;
     try {
-      await DB.run((c) async {
-        await c.query('DELETE FROM position_has_cadet WHERE position_position_id=?', [id]);
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-        await c.query('DELETE FROM `position` WHERE position_id=?', [id]);
-        return 0; // satisfy typing
-      });
+      // server-side deletePosition will unlink cadets and delete the position
+      await api.deletePosition(id);
       _load();
     } catch (e, st) {
       await showErrorDialog(context, 'Failed to delete position', e, st);
